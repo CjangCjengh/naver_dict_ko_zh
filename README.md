@@ -35,7 +35,7 @@
 ## 安装
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/CjangCjengh/naver_dict_ko_zh
 cd naver_dict_zh_ko
 pip install -r requirements.txt
 ```
@@ -112,11 +112,11 @@ PORT=8080 python app.py
 
 `data/kozh_full_kozh.jsonl` 是通过爬虫和 WebUI 回源积累的韩中词典数据，JSON Lines 格式。
 
-**重要提示**：
+**数据版权说明**：
 - 原始数据版权归 Naver 及其合作词典出版社所有。
-- 本项目代码以 MIT 协议开源，但数据仅作为示例/研究用途。
+- 仓库中附带的数据文件仅供学习研究参考，不代表作者拥有其版权。
 - 请勿将数据用于商业用途或公开大规模分发。
-- 如果担心版权问题，可以在 `.gitignore` 中忽略 `data/kozh_full_kozh.jsonl`，只保留代码。
+- 如需自行获取数据，可运行本项目的爬虫脚本。
 
 ## 代理配置
 
