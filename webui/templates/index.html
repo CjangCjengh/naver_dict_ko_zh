@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>本地 Naver 韩中词典</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>本地 Naver 韩中词典</h1>
+            <p class="subtitle">Naver Korean-Chinese Dictionary (Offline)</p>
+        </header>
+
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="韩文单词搜索... (예: 사랑)" autocomplete="off">
+            <button id="searchBtn">搜索</button>
+        </div>
+
+        <ul id="suggestList" class="suggest-list"></ul>
+
+        <div id="resultArea" class="result-area">
+            <p class="placeholder">请输入韩文单词开始查询</p>
+        </div>
+    </div>
+
+    <script>
+        const searchInput = document.getElementById('searchInput');
+        const searchBtn = document.getElementById('searchBtn');
+        const suggestList = document.getElementById('suggestList');
+        const resultArea = document.getElementById('resultArea');
+
+        let debounceTimer;
+
+        searchInput.addEventListener('input', (e) => {
+            clearTimeout(debounceTimer);
+            const q = e.target.value.trim();
+            if (!q) {
+                suggestList.innerHTML = '';
+                return;
+            }
+            debounceTimer = setTimeout(() => fetchSuggest(q), 150);
+        });
+
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                suggestList.innerHTML = '';
+                doSearch(searchInput.value.trim());
+            }
+        });
+
+        searchBtn.addEventListener('click', () => {
+            suggestList.innerHTML = '';
+            doSearch(searchInput.value.trim());
+        });
+
+        suggestList.addEventListener('click', (e) => {
+            if (e.target.tagName === 'LI') {
+                searchInput.value = e.target.textContent;
+                suggestList.innerHTML = '';
+                doSearch(searchInput.value);
+            }
+        });
+
+        async function fetchSuggest(q) {
+            try {
+                const res = await fetch(`/api/suggest?q=${encodeURIComponent(q)}`);
+                const data = await res.json();
+                suggestList.innerHTML = data.map(item => `<li>${escapeHtml(item)}</li>`).join('');
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function doSearch(q) {
+            if (!q) return;
+            resultArea.innerHTML = '<p class="loading">搜索中...</p>';
+            try {
+                const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+                const data = await res.json();
+                renderResults(data);
+            } catch (err) {
+                resultArea.innerHTML = `<p class="error">搜索失败：${err.message}</p>`;
+            }
+        }
+
+        function renderResults(data) {
+            if (!data.results || data.results.length === 0) {
+                resultArea.innerHTML = `<p class="no-result">未找到“${escapeHtml(data.query)}”相关结果</p>`;
+                return;
+            }
+
+            const html = data.results.map(r => {
+                const dictsHtml = r.items.map(item => {
+                    const meansHtml = item.means.map(m => {
+                        const part = m.part ? `<span class="part">${escapeHtml(m.part)}</span>` : '';
+                        const example = m.example ? `<div class="example">${escapeHtml(m.example)}</div>` : '';
+                        const exampleTrans = m.example_trans ? `<div class="example-trans">${escapeHtml(m.example_trans)}</div>` : '';
+                        return `<li class="mean-item">
+                            ${part}
+                            <span class="mean-value">${escapeHtml(m.value)}</span>
+                            ${example}
+                            ${exampleTrans}
+                        </li>`;
+                    }).join('');
+
+                    return `<div class="dict-block">
+                        <div class="dict-name">${escapeHtml(item.dict_name || '未知来源')}</div>
+                        <ul class="means-list">${meansHtml}</ul>
+                    </div>`;
+                }).join('');
+
+                // 聚合该 entry 下所有非空汉字标注
+                const hanjaSet = new Set();
+                r.items.forEach(item => {
+                    if (item.hanja) {
+                        item.hanja.split('/').forEach(h => {
+                            if (h.trim()) hanjaSet.add(h.trim());
+                        });
+                    }
+                });
+                const hanjaHtml = hanjaSet.size > 0
+                    ? `<span class="entry-hanja">${escapeHtml(Array.from(hanjaSet).join('/'))}</span>`
+                    : '';
+
+                return `<div class="entry-card">
+                    <h2 class="entry-title">${escapeHtml(r.entry)} ${hanjaHtml}</h2>
+                    ${dictsHtml}
+                </div>`;
+            }).join('');
+
+            resultArea.innerHTML = `<p class="summary">“${escapeHtml(data.query)}” 找到 ${data.results.length} 个词条</p>` + html;
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            return text
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+    </script>
+</body>
+</html>

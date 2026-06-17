@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+.env/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs and states
+*.log
+state/
+state_kozh/
+
+# Environment variables
+.env
+
+# OS files
+.DS_Store
+Thumbs.db
