@@ -284,9 +284,18 @@ def search_entries(query: str, limit: int = 50) -> List[dict]:
                     "dict_name_ori": item.get("dict_name_ori", ""),
                     "language_code": item.get("language_code", ""),
                     "match_type": item.get("match_type", ""),
+                    "hanja": set(),
                     "means": [],
                 }
+            if item.get("hanja"):
+                for h in str(item["hanja"]).split("/"):
+                    h = h.strip()
+                    if h:
+                        by_dict[dict_name]["hanja"].add(h)
             by_dict[dict_name]["means"].extend(item.get("means", []))
+
+        for d in by_dict.values():
+            d["hanja"] = "/".join(sorted(d["hanja"])) if d["hanja"] else ""
 
         output.append({
             "entry": entry,
