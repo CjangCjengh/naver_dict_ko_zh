@@ -52,6 +52,24 @@ header h1 {
     border: 2px solid #03c75a;
     border-radius: 8px;
     outline: none;
+    font-family:
+        -apple-system, BlinkMacSystemFont,
+        "Noto Sans CJK SC", "Noto Sans CJK TC",
+        "PingFang SC", "Hiragino Sans GB",
+        "Microsoft YaHei", "WenQuanYi Micro Hei",
+        "Apple SD Gothic Neo", "Malgun Gothic",
+        "Segoe UI", Roboto, sans-serif;
+}
+
+.search-box input::placeholder {
+    font-family:
+        -apple-system, BlinkMacSystemFont,
+        "Noto Sans CJK SC", "Noto Sans CJK TC",
+        "PingFang SC", "Hiragino Sans GB",
+        "Microsoft YaHei", "WenQuanYi Micro Hei",
+        "Apple SD Gothic Neo", "Malgun Gothic",
+        "Segoe UI", Roboto, sans-serif;
+    color: #999;
 }
 
 .search-box input:focus {
