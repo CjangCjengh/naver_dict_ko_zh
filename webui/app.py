@@ -14,6 +14,7 @@ Naver 韩中词典本地 WebUI
     然后打开 http://127.0.0.1:5001
 """
 
+import html
 import json
 import os
 import re
@@ -68,6 +69,54 @@ def clean_html(text: str) -> str:
     return re.sub(r"<[^>]+>", "", text)
 
 
+# autoLink 交叉引用标签（Naver 用 search 属性指向可查的词）
+AUTO_LINK_RE = re.compile(r'<autoLink\s+search="([^"]*)"\s*>(.*?)</autoLink>', re.S)
+# 想保留为真实 HTML 的标签（强调等），其余标签一律剥掉
+SAFE_TAG_RE = re.compile(r'</?(?:strong|em|b|i)\b[^>]*>', re.I)
+# 一次扫描同时匹配 autoLink（成对）和强调标签（单个）
+TOKEN_RE = re.compile(
+    r'<autoLink\s+search="([^"]*)"\s*>(.*?)</autoLink>'
+    r'|(<(?:strong|em|b|i)\b[^>]*>|</(?:strong|em|b|i)>)',
+    re.I | re.S,
+)
+
+
+def _escape_plain(text: str) -> str:
+    """剥掉未知标签并 HTML 转义剩余文本。"""
+    return html.escape(re.sub(r"<[^>]+>", "", text), quote=False)
+
+
+def render_rich_text(text: str) -> str:
+    """把释义/例句渲染成安全 HTML。
+
+    数据里的 <autoLink> 是已转义的实体（&lt;autoLink ...&gt;），clean_html
+    的正则认不出会原样漏到前端被二次转义。这里先 unescape，再把 autoLink
+    转成可点击的交叉引用链接，<strong>/<em> 保留为加粗/斜体，其余标签剥掉、
+    文本转义。
+    """
+    if not text:
+        return ""
+    text = html.unescape(text)
+    parts: List[str] = []
+    pos = 0
+    for m in TOKEN_RE.finditer(text):
+        parts.append(_escape_plain(text[pos:m.start()]))
+        if m.group(1) is not None:  # autoLink
+            search = html.escape(m.group(1), quote=True)
+            label = _escape_plain(m.group(2))
+            parts.append(f'<a class="autolink" data-search="{search}">{label}</a>')
+        else:  # strong / em 等强调标签
+            parts.append(m.group(3).lower())
+        pos = m.end()
+    parts.append(_escape_plain(text[pos:]))
+    return "".join(parts)
+
+
+# 旧名保留，避免改动调用点时的笔误
+def render_mean_value(text: str) -> str:
+    return render_rich_text(text)
+
+
 def extract_hanja(item: dict) -> str:
     """从 Naver 返回的 alias 列表中提取汉字标注。"""
     aliases = item.get("expAliasGeneralAlwaysList", []) or []
@@ -85,9 +134,9 @@ def parse_naver_item(item: dict) -> dict:
         for mean in collector.get("means", []):
             means.append({
                 "order": mean.get("order", ""),
-                "value": clean_html(mean.get("value", "")),
-                "example": clean_html(mean.get("exampleOri", "")),
-                "example_trans": clean_html(mean.get("exampleTrans", "")),
+                "value": render_rich_text(mean.get("value", "")),
+                "example": render_rich_text(mean.get("exampleOri", "")),
+                "example_trans": render_rich_text(mean.get("exampleTrans", "")),
                 "part": part,
             })
     return {
@@ -131,9 +180,9 @@ def load_data():
                     continue
                 # 清理释义中的 HTML
                 for mean in item.get("means", []):
-                    mean["value"] = clean_html(mean["value"])
-                    mean["example"] = clean_html(mean["example"])
-                    mean["example_trans"] = clean_html(mean["example_trans"])
+                    mean["value"] = render_rich_text(mean["value"])
+                    mean["example"] = render_rich_text(mean["example"])
+                    mean["example_trans"] = render_rich_text(mean["example_trans"])
                 if entry not in entries:
                     entries[entry] = []
                 entries[entry].append(item)
@@ -159,9 +208,9 @@ def add_entry_to_index(item: dict):
         return
     # 清理 HTML
     for mean in item.get("means", []):
-        mean["value"] = clean_html(mean["value"])
-        mean["example"] = clean_html(mean["example"])
-        mean["example_trans"] = clean_html(mean["example_trans"])
+        mean["value"] = render_rich_text(mean["value"])
+        mean["example"] = render_rich_text(mean["example"])
+        mean["example_trans"] = render_rich_text(mean["example_trans"])
 
     with lock:
         if entry not in entries:
@@ -344,4 +393,8 @@ def api_suggest():
 if __name__ == "__main__":
     load_data()
     port = int(os.environ.get("PORT", 5001))
+    base_path = os.environ.get("BASE_PATH", "").rstrip("/")
+    if base_path:
+        from werkzeug.middleware.dispatcher import DispatcherMiddleware
+        app.wsgi_app = DispatcherMiddleware(app.wsgi_app, {base_path: app.wsgi_app})
     app.run(host="0.0.0.0", port=port, debug=False)

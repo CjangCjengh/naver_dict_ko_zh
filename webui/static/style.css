@@ -201,6 +201,16 @@ header h1 {
     color: #333;
 }
 
+.autolink {
+    color: #1a73e8;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.autolink:hover {
+    text-decoration: underline;
+}
+
 .example {
     margin-top: 6px;
     margin-left: 0;

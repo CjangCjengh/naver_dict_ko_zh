@@ -33,6 +33,18 @@
 
         let debounceTimer;
 
+        // 交叉引用链接：点击 .autolink 直接查 data-search 指向的词
+        resultArea.addEventListener('click', (e) => {
+            const a = e.target.closest('.autolink');
+            if (!a) return;
+            e.preventDefault();
+            const q = a.getAttribute('data-search');
+            if (!q) return;
+            searchInput.value = q;
+            doSearch(q);
+            searchInput.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+
         searchInput.addEventListener('input', (e) => {
             clearTimeout(debounceTimer);
             const q = e.target.value.trim();
@@ -65,7 +77,7 @@
 
         async function fetchSuggest(q) {
             try {
-                const res = await fetch(`/api/suggest?q=${encodeURIComponent(q)}`);
+                const res = await fetch(`./api/suggest?q=${encodeURIComponent(q)}`);
                 const data = await res.json();
                 suggestList.innerHTML = data.map(item => `<li>${escapeHtml(item)}</li>`).join('');
             } catch (err) {
@@ -77,7 +89,7 @@
             if (!q) return;
             resultArea.innerHTML = '<p class="loading">搜索中...</p>';
             try {
-                const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+                const res = await fetch(`./api/search?q=${encodeURIComponent(q)}`);
                 const data = await res.json();
                 renderResults(data);
             } catch (err) {
@@ -95,11 +107,11 @@
                 const dictsHtml = r.items.map(item => {
                     const meansHtml = item.means.map(m => {
                         const part = m.part ? `<span class="part">${escapeHtml(m.part)}</span>` : '';
-                        const example = m.example ? `<div class="example">${escapeHtml(m.example)}</div>` : '';
-                        const exampleTrans = m.example_trans ? `<div class="example-trans">${escapeHtml(m.example_trans)}</div>` : '';
+                        const example = m.example ? `<div class="example">${m.example}</div>` : '';
+                        const exampleTrans = m.example_trans ? `<div class="example-trans">${m.example_trans}</div>` : '';
                         return `<li class="mean-item">
                             ${part}
-                            <span class="mean-value">${escapeHtml(m.value)}</span>
+                            <span class="mean-value">${m.value}</span>
                             ${example}
                             ${exampleTrans}
                         </li>`;
